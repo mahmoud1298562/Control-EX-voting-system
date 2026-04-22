@@ -110,6 +110,7 @@ async def register_user(
         future.result(timeout=10)
     except Exception as exc:
         log.error("Failed to send QR email to %s: %s", email, exc)
+        log.error(traceback.format_exc())
         # Roll back — user record is removed so they can re-register
         db.delete(user)
         db.commit()
