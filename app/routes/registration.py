@@ -108,7 +108,7 @@ async def register_user(
     # Wait up to 10 s for the email to go out.
     # If it fails, roll back the registration so the user can retry.
     try:
-        future.result(timeout=10)
+        executor.submit(send_email,user_data
     except Exception as exc:
         log.error("Failed to send QR email to %s: %s", email, exc)
         log.error(traceback.format_exc())
