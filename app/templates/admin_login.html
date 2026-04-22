@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Admin Login — EventPass{% endblock %}
+{% block content %}
+<div class="container" style="max-width:400px">
+  <div style="margin-bottom:2rem">
+    <div style="font-size:2.5rem;margin-bottom:0.75rem">🔐</div>
+    <h1>Admin <span style="color:#7c6fff">Access</span></h1>
+    <p style="color:#6b6b80;font-size:0.9rem;margin-top:0.4rem">Enter your password to continue.</p>
+  </div>
+
+  {% if error %}
+  <div class="error-box" style="margin-bottom:1.25rem">{{ error }}</div>
+  {% endif %}
+
+  <div class="card">
+    <form method="POST" action="/admin/login">
+      <div class="form-group" style="margin-bottom:1.5rem">
+        <label for="password">Password</label>
+        <input type="password" id="password" name="password" placeholder="••••••••" required autofocus />
+      </div>
+      <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center">
+        Enter Dashboard →
+      </button>
+    </form>
+  </div>
+</div>
+{% endblock %}

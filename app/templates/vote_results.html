@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Vote Results — EventPass{% endblock %}
+{% block content %}
+<div class="container" style="max-width:700px">
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:1rem;margin-bottom:2rem">
+    <div>
+      <h1>Vote <span style="color:#7c6fff">Results</span></h1>
+      <p style="color:#6b6b80;font-size:0.9rem;margin-top:0.25rem">{{ total_votes }} total vote{{ 's' if total_votes != 1 }}</p>
+    </div>
+    <a href="/admin/dashboard" class="btn btn-secondary" style="font-size:0.85rem">← Dashboard</a>
+  </div>
+
+  {% if tally %}
+  <div style="display:grid;gap:0.75rem">
+    {% for project_name, count in tally %}
+    {% set pct = (count / total_votes * 100)|int if total_votes > 0 else 0 %}
+    <div class="card" style="padding:1.25rem 1.5rem">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.6rem">
+        <div style="display:flex;align-items:center;gap:0.75rem">
+          {% if loop.index == 1 %}
+          <span style="font-size:1.3rem">🥇</span>
+          {% elif loop.index == 2 %}
+          <span style="font-size:1.3rem">🥈</span>
+          {% elif loop.index == 3 %}
+          <span style="font-size:1.3rem">🥉</span>
+          {% else %}
+          <span style="font-size:1rem;color:#6b6b80;width:1.3rem;text-align:center">{{ loop.index }}</span>
+          {% endif %}
+          <span style="font-weight:600;font-family:'Syne',sans-serif">{{ project_name }}</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:0.75rem">
+          <span style="font-size:0.85rem;color:#6b6b80">{{ count }} vote{{ 's' if count != 1 }}</span>
+          <span class="badge badge-purple">{{ pct }}%</span>
+        </div>
+      </div>
+      <div style="background:var(--border);height:6px;border-radius:99px;overflow:hidden">
+        <div style="background:{% if loop.index==1 %}#ffd166{% elif loop.index==2 %}#c0c0c0{% elif loop.index==3 %}#cd7f32{% else %}#7c6fff{% endif %};height:100%;width:{{ pct }}%;border-radius:99px;transition:width 1s"></div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="card" style="text-align:center;padding:3rem">
+    <div style="font-size:2.5rem;margin-bottom:1rem">🗳️</div>
+    <p style="color:#6b6b80">No votes have been cast yet.</p>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

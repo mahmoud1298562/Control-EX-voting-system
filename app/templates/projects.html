@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}Projects — EventPass{% endblock %}
+{% block content %}
+<div class="container" style="max-width:760px">
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:1rem;margin-bottom:2rem">
+    <div>
+      <div style="display:inline-flex;align-items:center;gap:0.5rem;background:rgba(79,255,176,0.08);border:1px solid rgba(79,255,176,0.25);border-radius:99px;padding:0.25rem 0.75rem;font-size:0.75rem;color:#4fffb0;font-weight:600;margin-bottom:0.75rem">
+        ✔ Verified Attendee
+      </div>
+      <h1>Event <span style="color:#7c6fff">Projects</span></h1>
+      <p style="color:#6b6b80;font-size:0.9rem;margin-top:0.25rem">Welcome, {{ user.name }}. 
+        {% if user.voted %}You have already voted.{% else %}Cast your vote for your favourite project.{% endif %}
+      </p>
+    </div>
+  </div>
+
+  <div id="vote-result" style="display:none;margin-bottom:1rem"></div>
+
+  {% if projects %}
+  <div style="display:grid;gap:1rem">
+    {% for project in projects %}
+    <div class="card" style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap">
+      <div style="flex:1;min-width:200px">
+        <h2 style="font-size:1.1rem;margin-bottom:0.25rem">{{ project.name }}</h2>
+        {% if project.team %}
+        <div style="font-size:0.8rem;color:#7c6fff;margin-bottom:0.5rem">Team: {{ project.team }}</div>
+        {% endif %}
+        {% if project.description %}
+        <p style="color:#6b6b80;font-size:0.875rem">{{ project.description }}</p>
+        {% endif %}
+      </div>
+      {% if not user.voted %}
+      <button
+        class="btn btn-secondary"
+        style="font-size:0.85rem;padding:0.5rem 1.25rem;flex-shrink:0"
+        onclick="castVote('{{ project.name }}')"
+      >
+        Vote ↗
+      </button>
+      {% else %}
+      <span class="badge badge-purple">Voted</span>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="card" style="text-align:center;padding:3rem">
+    <div style="font-size:2.5rem;margin-bottom:1rem">🚀</div>
+    <p style="color:#6b6b80">No projects have been added yet. Check back later!</p>
+  </div>
+  {% endif %}
+</div>
+
+<script>
+async function castVote(projectName) {
+  if (!confirm(`Vote for "${projectName}"? This cannot be undone.`)) return;
+
+  const res = await fetch('/vote', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+    body: new URLSearchParams({
+      user_uuid: '{{ user.id }}',
+      email: '{{ user.email }}',
+      project_name: projectName
+    })
+  });
+  const data = await res.json();
+  const box = document.getElementById('vote-result');
+  box.style.display = 'block';
+  if (data.status === 'success') {
+    box.className = 'success-box';
+    box.innerHTML = '✅ ' + data.message;
+    setTimeout(() => location.reload(), 1500);
+  } else {
+    box.className = 'error-box';
+    box.innerHTML = '⚠ ' + data.message;
+  }
+}
+</script>
+{% endblock %}

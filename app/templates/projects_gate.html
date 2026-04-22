@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Access Projects — EventPass{% endblock %}
+{% block content %}
+<div class="container" style="max-width:440px">
+  <div style="margin-bottom:2rem">
+    <div style="font-size:2.5rem;margin-bottom:0.75rem">🔒</div>
+    <h1>View <span style="color:#7c6fff">Projects</span></h1>
+    <p style="color:#6b6b80;font-size:0.9rem;margin-top:0.4rem">
+      Access is restricted to checked-in attendees only.
+    </p>
+  </div>
+
+  {% if error %}
+  <div class="error-box" style="margin-bottom:1.25rem">{{ error }}</div>
+  {% endif %}
+
+  <div class="card">
+    <form method="POST" action="/projects/gate">
+      <div class="form-group">
+        <label>Your UUID</label>
+        <input type="text" name="user_uuid" placeholder="e.g. 550e8400-e29b-41d4-a716-446655440000" required />
+        <p style="font-size:0.75rem;color:#6b6b80;margin-top:0.3rem">Found on your registration confirmation page.</p>
+      </div>
+      <div class="form-group" style="margin-bottom:1.5rem">
+        <label>Email Address</label>
+        <input type="email" name="email" placeholder="jane@example.com" required />
+      </div>
+      <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center">
+        Access Projects →
+      </button>
+    </form>
+  </div>
+</div>
+{% endblock %}

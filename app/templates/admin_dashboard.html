@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — EventPass{% endblock %}
+{% block content %}
+<div class="container" style="max-width:1000px">
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:1rem;margin-bottom:2rem">
+    <div>
+      <h1>Admin <span style="color:#7c6fff">Dashboard</span></h1>
+      <p style="color:#6b6b80;font-size:0.9rem;margin-top:0.25rem">Event management overview</p>
+    </div>
+    <div style="display:flex;gap:0.75rem;flex-wrap:wrap">
+      <a href="/admin/votes" class="btn btn-secondary" style="font-size:0.85rem">📊 Vote Results</a>
+      <a href="/admin/export" class="btn btn-secondary" style="font-size:0.85rem">⬇ Export CSV</a>
+      <a href="/admin/logout" class="btn btn-secondary" style="font-size:0.85rem">Logout</a>
+    </div>
+  </div>
+
+  <div class="grid-3" style="margin-bottom:2rem">
+    <div class="stat-card">
+      <div class="stat-number" style="color:#7c6fff">{{ total }}</div>
+      <div class="stat-label">Registered</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-number" style="color:#4fffb0">{{ attended }}</div>
+      <div class="stat-label">Checked In</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-number" style="color:#ffd166">{{ voted }}</div>
+      <div class="stat-label">Voted</div>
+    </div>
+  </div>
+
+  {% if total > 0 %}
+  <div style="margin-bottom:1rem;display:flex;align-items:center;gap:0.75rem">
+    <div style="flex:1;background:var(--border);height:6px;border-radius:99px;overflow:hidden">
+      <div style="background:#4fffb0;height:100%;width:{{ (attended/total*100)|int }}%;border-radius:99px;transition:width 1s"></div>
+    </div>
+    <span style="font-size:0.8rem;color:#6b6b80;white-space:nowrap">{{ (attended/total*100)|int }}% attendance</span>
+  </div>
+  {% endif %}
+
+  <div class="card" style="padding:0;overflow:hidden">
+    <div style="padding:1.25rem 1.5rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+      <h2 style="font-size:1rem">Attendees <span style="color:#6b6b80;font-weight:400">({{ total }})</span></h2>
+      <input type="text" id="search" placeholder="Search…" style="width:200px;font-size:0.85rem;padding:0.4rem 0.75rem" oninput="filterTable(this.value)" />
+    </div>
+    <div style="overflow-x:auto">
+      <table id="attendees-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Name</th>
+            <th>Email</th>
+            <th>Status</th>
+            <th>Check-in Time</th>
+            <th>Voted</th>
+            <th>Registered</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for user in users %}
+          <tr>
+            <td style="color:#6b6b80;font-size:0.8rem">{{ loop.index }}</td>
+            <td style="font-weight:500">{{ user.name }}</td>
+            <td style="color:#6b6b80;font-size:0.85rem">{{ user.email }}</td>
+            <td>
+              {% if user.attended %}
+              <span class="badge badge-green">✔ Attended</span>
+              {% else %}
+              <span class="badge badge-red">✗ Absent</span>
+              {% endif %}
+            </td>
+            <td style="color:#6b6b80;font-size:0.8rem">
+              {% if user.attended_at %}{{ user.attended_at.strftime('%H:%M:%S') }}{% else %}—{% endif %}
+            </td>
+            <td>
+              {% if user.voted %}
+              <span class="badge badge-yellow">✔</span>
+              {% else %}
+              <span style="color:#6b6b80;font-size:0.85rem">—</span>
+              {% endif %}
+            </td>
+            <td style="color:#6b6b80;font-size:0.8rem">
+              {% if user.created_at %}{{ user.created_at.strftime('%b %d, %H:%M') }}{% endif %}
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="7" style="text-align:center;color:#6b6b80;padding:2rem">No registrations yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+function filterTable(q) {
+  const rows = document.querySelectorAll('#attendees-table tbody tr');
+  q = q.toLowerCase();
+  rows.forEach(row => {
+    row.style.display = row.textContent.toLowerCase().includes(q) ? '' : 'none';
+  });
+}
+</script>
+{% endblock %}

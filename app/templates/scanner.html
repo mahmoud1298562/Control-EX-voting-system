@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Scanner — EventPass</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --black:   #0a0a0f;
+      --surface: #13131a;
+      --card:    #1c1c26;
+      --border:  #2a2a38;
+      --accent:  #7c6fff;
+      --green:   #4fffb0;
+      --yellow:  #ffd166;
+      --red:     #ff6b6b;
+      --text:    #e8e8f0;
+      --muted:   #6b6b80;
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--black);
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      overflow: hidden;
+    }
+
+    /* ── Layout ── */
+    #app {
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      height: 100dvh;
+    }
+
+    /* ── Top bar ── */
+    #topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.75rem 1.25rem;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      gap: 1rem;
+    }
+    #topbar .brand {
+      font-family: 'Syne', sans-serif;
+      font-weight: 800;
+      font-size: 1rem;
+      color: var(--accent);
+      letter-spacing: -0.02em;
+      text-decoration: none;
+    }
+    #cam-status {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+    #cam-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--yellow);
+      flex-shrink: 0;
+      transition: background 0.3s;
+    }
+    #cam-dot.live  { background: var(--green); animation: blink 2s infinite; }
+    #cam-dot.error { background: var(--red); animation: none; }
+    @keyframes blink { 0%,100%{opacity:1} 60%{opacity:0.35} }
+
+    #topbar-right { display: flex; align-items: center; gap: 0.75rem; }
+    .count-pill {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 99px;
+      padding: 0.2rem 0.65rem;
+      font-size: 0.75rem;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+    .count-pill span { color: var(--text); font-weight: 600; }
+    #btn-cam {
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--muted);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.78rem;
+      padding: 0.3rem 0.65rem;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    #btn-cam:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── Camera viewport ── */
+    #viewport {
+      position: relative;
+      overflow: hidden;
+      background: #000;
+    }
+    #reader {
+      width: 100%;
+      height: 100%;
+    }
+    /* html5-qrcode overrides */
+    #reader video {
+      width: 100% !important;
+      height: 100% !important;
+      object-fit: cover !important;
+    }
+    #reader img { display: none !important; }
+
+    /* Aim overlay */
+    #aim {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+    }
+    #aim-box {
+      width: min(56vw, 240px);
+      height: min(56vw, 240px);
+      position: relative;
+    }
+    .corner {
+      position: absolute;
+      width: 22px; height: 22px;
+      border-color: white;
+      border-style: solid;
+      opacity: 0.8;
+    }
+    .corner.tl { top:0; left:0;  border-width: 3px 0 0 3px; border-radius: 3px 0 0 0; }
+    .corner.tr { top:0; right:0; border-width: 3px 3px 0 0; border-radius: 0 3px 0 0; }
+    .corner.bl { bottom:0; left:0;  border-width: 0 0 3px 3px; border-radius: 0 0 0 3px; }
+    .corner.br { bottom:0; right:0; border-width: 0 3px 3px 0; border-radius: 0 0 3px 0; }
+    #scan-line {
+      position: absolute;
+      left: 6px; right: 6px;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--green), transparent);
+      animation: scan 2s ease-in-out infinite;
+    }
+    @keyframes scan {
+      0%   { top: 6px;   opacity: 0; }
+      10%  { opacity: 1; }
+      90%  { opacity: 1; }
+      100% { top: calc(100% - 8px); opacity: 0; }
+    }
+
+    /* Flash overlay on result */
+    #flash {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.1s;
+    }
+    #flash.flash-success  { background: rgba(79,255,176,0.18); }
+    #flash.flash-duplicate { background: rgba(255,209,102,0.18); }
+    #flash.flash-invalid  { background: rgba(255,107,107,0.18); }
+
+    /* Paused overlay */
+    #paused-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(10,10,15,0.82);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+    #paused-overlay p { font-size: 0.9rem; color: var(--muted); }
+    #btn-restart {
+      background: var(--accent);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-family: 'Syne', sans-serif;
+      font-weight: 700;
+      font-size: 0.9rem;
+      padding: 0.6rem 1.5rem;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    #btn-restart:hover { background: #6b5eee; }
+
+    /* ── Result banner ── */
+    #result-banner {
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      padding: 1rem 1.25rem;
+      transform: translateY(100%);
+      transition: transform 0.25s cubic-bezier(0.34,1.56,0.64,1);
+      z-index: 10;
+    }
+    #result-banner.show { transform: translateY(0); }
+    #result-banner.state-success  { background: rgba(13,30,22,0.97); border-top: 2px solid var(--green); }
+    #result-banner.state-duplicate { background: rgba(30,25,13,0.97); border-top: 2px solid var(--yellow); }
+    #result-banner.state-invalid  { background: rgba(30,13,13,0.97); border-top: 2px solid var(--red); }
+
+    #result-icon {
+      font-size: 2.2rem;
+      line-height: 1;
+      margin-bottom: 0.2rem;
+    }
+    #result-name {
+      font-family: 'Syne', sans-serif;
+      font-weight: 800;
+      font-size: 1.5rem;
+      letter-spacing: -0.02em;
+      line-height: 1.1;
+    }
+    #result-name.col-green  { color: var(--green); }
+    #result-name.col-yellow { color: var(--yellow); }
+    #result-name.col-red    { color: var(--red); }
+    #result-sub {
+      font-size: 0.85rem;
+      color: var(--muted);
+      margin-top: 0.15rem;
+    }
+
+    /* ── Log strip ── */
+    #log-strip {
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      overflow-x: auto;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 1rem;
+      min-height: 44px;
+      scrollbar-width: none;
+    }
+    #log-strip::-webkit-scrollbar { display: none; }
+    .log-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      background: var(--card);
+      border-radius: 99px;
+      padding: 0.2rem 0.6rem;
+      font-size: 0.72rem;
+      white-space: nowrap;
+      flex-shrink: 0;
+      border: 1px solid var(--border);
+    }
+    .log-item.s { border-color: rgba(79,255,176,0.25); color: var(--green); }
+    .log-item.d { border-color: rgba(255,209,102,0.25); color: var(--yellow); }
+    .log-item.e { border-color: rgba(255,107,107,0.25); color: var(--red); }
+    #log-empty { font-size: 0.78rem; color: var(--muted); }
+  </style>
+</head>
+<body>
+<div id="app">
+
+  <!-- Top bar -->
+  <div id="topbar">
+    <a href="/admin/dashboard" class="brand">⚡ EventPass</a>
+    <div id="cam-status">
+      <div id="cam-dot"></div>
+      <span id="cam-text">Starting…</span>
+    </div>
+    <div id="topbar-right">
+      <div class="count-pill">Scanned <span id="count-ok">0</span></div>
+      <button id="btn-cam" onclick="toggleCamera()">Pause</button>
+    </div>
+  </div>
+
+  <!-- Camera viewport -->
+  <div id="viewport">
+    <div id="reader"></div>
+
+    <!-- Aim overlay -->
+    <div id="aim">
+      <div id="aim-box">
+        <div class="corner tl"></div>
+        <div class="corner tr"></div>
+        <div class="corner bl"></div>
+        <div class="corner br"></div>
+        <div id="scan-line"></div>
+      </div>
+    </div>
+
+    <!-- Result banner (slides up from bottom of viewport) -->
+    <div id="result-banner">
+      <div id="result-icon"></div>
+      <div id="result-name"></div>
+      <div id="result-sub"></div>
+    </div>
+
+    <!-- Flash overlay -->
+    <div id="flash"></div>
+
+    <!-- Paused state -->
+    <div id="paused-overlay">
+      <p>Camera paused</p>
+      <button id="btn-restart" onclick="startCamera()">Resume Scanning</button>
+    </div>
+  </div>
+
+  <!-- Scan log strip -->
+  <div id="log-strip">
+    <span id="log-empty">No scans yet — waiting for first QR code…</span>
+  </div>
+
+</div>
+
+<script>
+// ── Audio synthesis (no external files needed) ─────────────────────────────
+const AudioCtx = window.AudioContext || window.webkitAudioContext;
+let actx = null;
+
+function getAudioCtx() {
+  if (!actx) actx = new AudioCtx();
+  return actx;
+}
+
+function beep(type) {
+  try {
+    const ctx = getAudioCtx();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    if (type === 'success') {
+      // Two rising tones — pleasant chime
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(660, ctx.currentTime);
+      osc.frequency.linearRampToValueAtTime(880, ctx.currentTime + 0.12);
+      gain.gain.setValueAtTime(0.18, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 0.35);
+    } else if (type === 'duplicate') {
+      // Soft mid-tone
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(440, ctx.currentTime);
+      gain.gain.setValueAtTime(0.14, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.28);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 0.28);
+    } else {
+      // Low buzz — error
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(180, ctx.currentTime);
+      gain.gain.setValueAtTime(0.1, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.22);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 0.22);
+    }
+  } catch (_) {}
+}
+
+// ── State ──────────────────────────────────────────────────────────────────
+let scanner       = null;
+let running       = false;
+let processing    = false;          // block concurrent scans
+let lastToken     = '';
+let lastTokenTime = 0;
+let countOk       = 0;
+let logItems      = [];
+let resultTimer   = null;
+const DEBOUNCE_MS = 2500;           // ignore re-scan of same QR within this window
+
+// ── Camera ─────────────────────────────────────────────────────────────────
+async function startCamera() {
+  document.getElementById('paused-overlay').style.display = 'none';
+  setCamStatus('Starting…', 'idle');
+
+  try {
+    const cameras = await Html5Qrcode.getCameras();
+    if (!cameras || !cameras.length) {
+      setCamStatus('No camera found', 'error');
+      return;
+    }
+    // Prefer environment-facing (rear) camera
+    const cam = cameras.find(c => /back|rear|environment/i.test(c.label)) || cameras[cameras.length - 1];
+
+    scanner = new Html5Qrcode('reader', { verbose: false });
+    await scanner.start(
+      { deviceId: { exact: cam.id } },
+      { fps: 15, qrbox: { width: 230, height: 230 }, aspectRatio: 1.0 },
+      onScanSuccess,
+      () => {}   // suppress per-frame errors
+    );
+    running = true;
+    setCamStatus('Live', 'live');
+    document.getElementById('btn-cam').textContent = 'Pause';
+  } catch (err) {
+    setCamStatus('Camera error', 'error');
+    console.error(err);
+  }
+}
+
+function stopCamera() {
+  if (scanner && running) {
+    scanner.stop().then(() => {
+      running = false;
+      scanner = null;
+      setCamStatus('Paused', 'idle');
+      document.getElementById('paused-overlay').style.display = 'flex';
+      document.getElementById('btn-cam').textContent = 'Resume';
+    }).catch(() => {});
+  }
+}
+
+function toggleCamera() {
+  if (running) stopCamera(); else startCamera();
+}
+
+function setCamStatus(text, state) {
+  document.getElementById('cam-text').textContent = text;
+  const dot = document.getElementById('cam-dot');
+  dot.className = '';
+  if (state === 'live')  dot.classList.add('live');
+  if (state === 'error') dot.classList.add('error');
+}
+
+// ── Scan handler ───────────────────────────────────────────────────────────
+async function onScanSuccess(decodedText) {
+  const now = Date.now();
+  // Debounce: skip if same token scanned within window
+  if (processing || (decodedText === lastToken && now - lastTokenTime < DEBOUNCE_MS)) return;
+
+  processing    = true;
+  lastToken     = decodedText;
+  lastTokenTime = now;
+
+  try {
+    const res = await fetch('/scan', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ token: decodedText.trim() }),
+    });
+    const data = await res.json();
+    handleResult(data);
+  } catch (_) {
+    handleResult({ status: 'invalid', name: '', message: 'Network error' });
+  } finally {
+    // Re-enable after result display window
+    setTimeout(() => { processing = false; }, DEBOUNCE_MS);
+  }
+}
+
+// ── Result display ─────────────────────────────────────────────────────────
+function handleResult(data) {
+  const { status, name, message } = data;
+
+  if (status === 'success') {
+    showBanner('✅', name || 'Checked in!', message, 'state-success', 'col-green');
+    flashViewport('flash-success');
+    beep('success');
+    countOk++;
+    document.getElementById('count-ok').textContent = countOk;
+    addLog('s', name || 'OK');
+  } else if (status === 'already_scanned') {
+    showBanner('⚠️', name || 'Duplicate', message, 'state-duplicate', 'col-yellow');
+    flashViewport('flash-duplicate');
+    beep('duplicate');
+    addLog('d', name || 'Dup');
+  } else {
+    showBanner('❌', 'Invalid QR', message || 'Unknown or tampered code', 'state-invalid', 'col-red');
+    flashViewport('flash-invalid');
+    beep('invalid');
+    addLog('e', 'Invalid');
+  }
+}
+
+function showBanner(icon, name, sub, stateClass, nameClass) {
+  const banner = document.getElementById('result-banner');
+  document.getElementById('result-icon').textContent = icon;
+
+  const nameEl = document.getElementById('result-name');
+  nameEl.textContent = name;
+  nameEl.className = nameClass;
+
+  document.getElementById('result-sub').textContent = sub;
+
+  banner.className = 'show ' + stateClass;
+
+  if (resultTimer) clearTimeout(resultTimer);
+  resultTimer = setTimeout(() => {
+    banner.className = stateClass; // slide back down (remove 'show')
+  }, 3000);
+}
+
+function flashViewport(cls) {
+  const f = document.getElementById('flash');
+  f.className = cls;
+  f.style.opacity = '1';
+  setTimeout(() => { f.style.opacity = '0'; }, 180);
+}
+
+// ── Log strip ──────────────────────────────────────────────────────────────
+function addLog(type, label) {
+  const icons = { s: '✓', d: '⚠', e: '✗' };
+  const time  = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  logItems.unshift({ type, label, time });
+  if (logItems.length > 20) logItems.pop();
+
+  const strip = document.getElementById('log-strip');
+  document.getElementById('log-empty')?.remove();
+
+  // Prepend new item
+  const el = document.createElement('div');
+  el.className = 'log-item ' + type;
+  el.textContent = icons[type] + ' ' + label + ' · ' + time;
+  strip.prepend(el);
+
+  // Trim old items from DOM
+  while (strip.children.length > 20) strip.removeChild(strip.lastChild);
+}
+
+// ── Unlock AudioContext on first user gesture ──────────────────────────────
+document.addEventListener('click', () => { try { getAudioCtx().resume(); } catch(_){} }, { once: true });
+
+// ── Boot ───────────────────────────────────────────────────────────────────
+window.addEventListener('load', () => startCamera());
+</script>
+</body>
+</html>

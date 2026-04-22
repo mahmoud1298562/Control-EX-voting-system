@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Registration Confirmed — EventPass{% endblock %}
+{% block content %}
+<div class="container" style="max-width:500px;text-align:center">
+  <div style="margin-bottom:2rem">
+    <div style="font-size:3.5rem;margin-bottom:1rem">📬</div>
+    <h1 style="margin-bottom:0.5rem">Check your<br><span style="color:#7c6fff">inbox!</span></h1>
+    <p style="color:#6b6b80;font-size:0.95rem;line-height:1.6">
+      Your QR entry pass has been sent to<br>
+      <strong style="color:#e8e8f0">{{ email }}</strong>
+    </p>
+  </div>
+
+  <div class="card" style="text-align:left;margin-bottom:1.5rem">
+    <h2 style="font-size:1rem;margin-bottom:1rem;color:#7c6fff">What to do next</h2>
+    <div style="display:flex;flex-direction:column;gap:0.75rem">
+      <div style="display:flex;gap:0.75rem;align-items:flex-start">
+        <span style="background:rgba(124,111,255,0.15);border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.8rem;flex-shrink:0;color:#7c6fff">1</span>
+        <p style="font-size:0.9rem;color:#a0a0b8;margin:4px 0 0">Open the email from <strong style="color:#e8e8f0">EventPass</strong> and find the QR code image.</p>
+      </div>
+      <div style="display:flex;gap:0.75rem;align-items:flex-start">
+        <span style="background:rgba(124,111,255,0.15);border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.8rem;flex-shrink:0;color:#7c6fff">2</span>
+        <p style="font-size:0.9rem;color:#a0a0b8;margin:4px 0 0">Save the email or screenshot the QR — you'll need it at the door.</p>
+      </div>
+      <div style="display:flex;gap:0.75rem;align-items:flex-start">
+        <span style="background:rgba(124,111,255,0.15);border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.8rem;flex-shrink:0;color:#7c6fff">3</span>
+        <p style="font-size:0.9rem;color:#a0a0b8;margin:4px 0 0">Show the QR to the organiser at the entrance to check in.</p>
+      </div>
+    </div>
+  </div>
+
+  <div style="padding:0.85rem 1rem;background:rgba(79,255,176,0.06);border:1px solid rgba(79,255,176,0.2);border-radius:10px;font-size:0.83rem;color:#4fffb0;margin-bottom:1.75rem;text-align:left">
+    ✉️ <strong>Didn't receive the email?</strong> Check your spam folder.
+    The QR code is also attached as a PNG file to the email.
+  </div>
+
+  <a href="/" class="btn btn-secondary" style="font-size:0.875rem">← Register another person</a>
+</div>
+{% endblock %}
