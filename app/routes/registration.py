@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, Request, Form
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
+import traceback
 
 from app.utils.database import get_db
 from app.utils.security import create_user_jwt
