@@ -18,7 +18,7 @@ router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
 
 
-# ── Basic email validation ─────────────────────────────────────────────
+# ── Email validation ───────────────────────────────────────────────────────
 def _valid_email(email: str) -> bool:
     parts = email.split("@")
     return (
@@ -29,13 +29,12 @@ def _valid_email(email: str) -> bool:
     )
 
 
-# ── Register page ──────────────────────────────────────────────────────
+# ── Routes ────────────────────────────────────────────────────────────────
 @router.get("/", response_class=HTMLResponse)
 async def register_page(request: Request):
     return templates.TemplateResponse("register.html", {"request": request})
 
 
-# ── Register user ──────────────────────────────────────────────────────
 @router.post("/register", response_class=HTMLResponse)
 async def register_user(
     request: Request,
@@ -45,48 +44,48 @@ async def register_user(
 ):
     client_ip = request.client.host
 
-    # ── Rate limit ──────────────────────────────────────────────────────
+    # ── Rate limit ─────────────────────────────────────────────────────────
     if not register_limiter.is_allowed(client_ip):
         return templates.TemplateResponse("register.html", {
             "request": request,
-            "error": "Too many registration attempts. Please wait and try again.",
+            "error": "Too many registration attempts. Please wait a minute and try again.",
         })
 
-    # ── Clean input ─────────────────────────────────────────────────────
-    name = name.strip()
+    # ── Clean input ────────────────────────────────────────────────────────
+    name  = name.strip()
     email = email.strip().lower()
 
     if len(name) < 2:
         return templates.TemplateResponse("register.html", {
             "request": request,
-            "error": "Please enter a valid name.",
+            "error": "Please enter your full name (at least 2 characters).",
         })
 
     if not _valid_email(email):
         return templates.TemplateResponse("register.html", {
             "request": request,
-            "error": "Invalid email address.",
+            "error": "Please enter a valid email address.",
         })
 
-    # ── Duplicate check ─────────────────────────────────────────────────
+    # ── Check duplicate ────────────────────────────────────────────────────
     existing = db.query(User).filter(User.email == email).first()
     if existing:
         return templates.TemplateResponse("register.html", {
             "request": request,
-            "error": "Email already registered.",
+            "error": "This email is already registered. Check your inbox for your QR code.",
         })
 
-    # ── Email config check ──────────────────────────────────────────────
+    # ── Check email config ─────────────────────────────────────────────────
     if not email_configured():
-        log.error("Email not configured properly (EMAIL_USER/EMAIL_PASS missing).")
+        log.error("EMAIL_USER / EMAIL_PASS not configured.")
         return templates.TemplateResponse("register.html", {
             "request": request,
-            "error": "Email system is not configured.",
+            "error": "Email service is not configured. Contact the organiser.",
         })
 
-    # ── Create user ─────────────────────────────────────────────────────
+    # ── Create user ────────────────────────────────────────────────────────
     user_id = str(_uuid.uuid4())
-    token = create_user_jwt(user_id)
+    token   = create_user_jwt(user_id)
 
     user = User(
         id=user_id,
@@ -100,31 +99,26 @@ async def register_user(
     db.add(user)
     db.commit()
 
-    # ── Send email (FIXED VERSION) ──────────────────────────────────────
-    try:
-        send_qr_email_async(
-            to_name=name,
-            to_email=email,
-            user_uuid=user_id,
-            jwt_token=token,
-        )
-    except Exception as exc:
-        log.error("Failed to send QR email to %s: %s", email, exc)
-        log.error(traceback.format_exc())
+    # ── Send email (background) ────────────────────────────────────────────
+    future = send_qr_email_async(
+        to_name=name,
+        to_email=email,
+        user_uuid=user_id,
+        jwt_token=token,
+    )
 
-        db.delete(user)
-        db.commit()
+    # ── Handle errors in background (logging only) ─────────────────────────
+    def _email_callback(f):
+        try:
+            f.result()
+        except Exception as e:
+            log.error("Email failed for %s: %s", email, e)
+            log.error(traceback.format_exc())
 
-        return templates.TemplateResponse("register.html", {
-            "request": request,
-            "error": (
-                "Email delivery failed. Please try again later "
-                "or contact the organizer."
-            ),
-        })
+    future.add_done_callback(_email_callback)
 
-    # ── Success ─────────────────────────────────────────────────────────
-    log.info("Registered user: %s <%s>", name, email)
+    # ── Success ────────────────────────────────────────────────────────────
+    log.info("Registered: %s <%s> uuid=%s", name, email, user_id)
 
     return templates.TemplateResponse("success.html", {
         "request": request,
