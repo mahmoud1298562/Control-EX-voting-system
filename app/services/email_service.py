@@ -16,8 +16,14 @@ log = logging.getLogger(__name__)
 
 resend.api_key = os.environ.get("RESEND_API_KEY", "")
 
-EVENT_NAME   = os.getenv("EVENT_NAME", "EventPass")
-FROM_ADDRESS = os.getenv("EMAIL_FROM") or f"{EVENT_NAME} <onboarding@resend.dev>"
+EVENT_NAME = os.getenv("EVENT_NAME", "EventPass")
+
+# ✅ FIX: handle empty or missing EMAIL_FROM safely
+_email_from = os.getenv("EMAIL_FROM", "").strip()
+if _email_from:
+    FROM_ADDRESS = _email_from
+else:
+    FROM_ADDRESS = f"{EVENT_NAME or 'EventPass'} <onboarding@resend.dev>"
 
 _executor = concurrent.futures.ThreadPoolExecutor(
     max_workers=4, thread_name_prefix="email"
@@ -48,8 +54,10 @@ def _send_blocking(
     if not resend.api_key:
         raise RuntimeError("RESEND_API_KEY environment variable is not set.")
 
-    qr_png   = _generate_qr_png(jwt_token)
-    qr_b64   = base64.b64encode(qr_png).decode()
+    # 🔍 debug مهم
+    log.info("Using FROM_ADDRESS = %r", FROM_ADDRESS)
+
+    qr_png = _generate_qr_png(jwt_token)
 
     html_body = f"""
 <html>
@@ -118,20 +126,22 @@ def _send_blocking(
 </body>
 </html>"""
 
-    params = resend.Emails.SendParams(
-        from_=FROM_ADDRESS,
-        to=[f"{to_name} <{to_email}>"],
-        subject=f"Your Entry Pass — {EVENT_NAME}",
-        html=html_body,
-        attachments=[
-            resend.Attachment(
-                filename="entry_pass.png",
-                content=list(qr_png),   # Resend expects list of ints
-            )
+    # ✅ FIX: use dict instead of SendParams
+    params = {
+        "from": FROM_ADDRESS,
+        "to": [f"{to_name} <{to_email}>"],
+        "subject": f"Your Entry Pass — {EVENT_NAME}",
+        "html": html_body,
+        "attachments": [
+            {
+                "filename": "entry_pass.png",
+                "content": base64.b64encode(qr_png).decode(),
+            }
         ],
-    )
+    }
+
     response = resend.Emails.send(params)
-    log.info("Resend delivered to %s — id=%s", to_email, response["id"])
+    log.info("Resend delivered to %s — id=%s", to_email, response.get("id"))
 
 
 def send_qr_email_async(
