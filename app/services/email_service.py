@@ -17,7 +17,7 @@ log = logging.getLogger(__name__)
 resend.api_key = os.environ.get("RESEND_API_KEY", "")
 
 EVENT_NAME   = os.getenv("EVENT_NAME", "EventPass")
-FROM_ADDRESS = os.getenv("EMAIL_FROM", f"{EVENT_NAME} <onboarding@resend.dev>")
+FROM_ADDRESS = os.getenv("EMAIL_FROM") or f"{EVENT_NAME} <onboarding@resend.dev>"
 
 _executor = concurrent.futures.ThreadPoolExecutor(
     max_workers=4, thread_name_prefix="email"
