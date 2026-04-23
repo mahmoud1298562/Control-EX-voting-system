@@ -1,38 +1,29 @@
 """
-email_service.py — sends QR code via email using smtplib over TLS.
+email_service.py — Resend API-based email delivery.
+No SMTP, no blocked ports, works on Railway, Render, Fly.io, etc.
 """
-
+import base64
 import io
 import logging
 import os
-import smtplib
 import concurrent.futures
-import time
 
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
-from email.mime.image import MIMEImage
-
+import resend
 import qrcode
 import qrcode.constants
 
 log = logging.getLogger(__name__)
 
-# ── Thread pool ─────────────────────────────────────────────────────────────
+resend.api_key = os.environ.get("RESEND_API_KEY", "")
+
+EVENT_NAME   = os.getenv("EVENT_NAME", "EventPass")
+FROM_ADDRESS = os.getenv("EMAIL_FROM", f"{EVENT_NAME} <onboarding@resend.dev>")
+
 _executor = concurrent.futures.ThreadPoolExecutor(
-    max_workers=4,
-    thread_name_prefix="email"
+    max_workers=4, thread_name_prefix="email"
 )
 
-# ── Env vars ────────────────────────────────────────────────────────────────
-EMAIL_USER = os.getenv("EMAIL_USER", "").strip()
-EMAIL_PASS = os.getenv("EMAIL_PASS", "").strip()
-SMTP_HOST  = os.getenv("SMTP_HOST", "smtp.gmail.com")
-SMTP_PORT  = int(os.getenv("SMTP_PORT", "587"))
-EVENT_NAME = os.getenv("EVENT_NAME", "EventPass")
 
-
-# ── QR generator ────────────────────────────────────────────────────────────
 def _generate_qr_png(data: str) -> bytes:
     qr = qrcode.QRCode(
         version=2,
@@ -43,103 +34,114 @@ def _generate_qr_png(data: str) -> bytes:
     qr.add_data(data)
     qr.make(fit=True)
     img = qr.make_image(fill_color="#0a0a0f", back_color="white")
-
     buf = io.BytesIO()
     img.save(buf, format="PNG", optimize=True)
     return buf.getvalue()
 
 
-# ── Blocking send ───────────────────────────────────────────────────────────
 def _send_blocking(
     to_name: str,
     to_email: str,
     user_uuid: str,
     jwt_token: str,
 ) -> None:
-    # 👇 مهم جدًا علشان Gmail ما يعملش rate limit
-    time.sleep(1)
+    if not resend.api_key:
+        raise RuntimeError("RESEND_API_KEY environment variable is not set.")
 
-    if not EMAIL_USER or not EMAIL_PASS:
-        raise RuntimeError(
-            "EMAIL_USER and EMAIL_PASS must be set in environment."
-        )
-
-    qr_png = _generate_qr_png(jwt_token)
-
-    # ── Build message ──────────────────────────────────────────────────────
-    msg = MIMEMultipart("related")
-    msg["Subject"] = f"Your Entry Pass — {EVENT_NAME}"
-    msg["From"]    = f"{EVENT_NAME} <{EMAIL_USER}>"
-    msg["To"]      = f"{to_name} <{to_email}>"
+    qr_png   = _generate_qr_png(jwt_token)
+    qr_b64   = base64.b64encode(qr_png).decode()
 
     html_body = f"""
-    <html>
-    <body style="font-family:Arial;background:#f4f4f8;padding:20px">
-        <h2>Hello {to_name} 👋</h2>
-        <p>Your registration is confirmed.</p>
-        <p>Show this QR at the event entrance:</p>
-        <img src="cid:qrcode" width="220"/>
-        <p><b>Your ID:</b> {user_uuid}</p>
-    </body>
-    </html>
-    """
+<html>
+<body style="margin:0;padding:0;background:#f4f4f8;font-family:Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="padding:32px 0">
+  <tr><td align="center">
+    <table width="560" cellpadding="0" cellspacing="0"
+           style="background:#fff;border-radius:12px;overflow:hidden;
+                  box-shadow:0 4px 24px rgba(0,0,0,0.08)">
+      <tr>
+        <td style="background:#0a0a0f;padding:28px 40px">
+          <p style="margin:0;font-size:22px;font-weight:800;color:#7c6fff">
+            ⚡ {EVENT_NAME}
+          </p>
+          <p style="margin:4px 0 0;font-size:13px;color:#6b6b80">Entry Pass</p>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:36px 40px">
+          <p style="margin:0 0 8px;font-size:20px;font-weight:700;color:#13131a">
+            Hello, {to_name}!
+          </p>
+          <p style="margin:0 0 28px;font-size:15px;color:#555;line-height:1.6">
+            Your registration is confirmed. Present the QR code below
+            at the entrance to check in.
+          </p>
+          <table width="100%" cellpadding="0" cellspacing="0">
+            <tr><td align="center"
+                    style="padding:24px;background:#f8f8fc;border-radius:10px">
+              <img src="cid:qrcode" width="220" height="220"
+                   alt="Your QR entry code"
+                   style="display:block;border:0" />
+            </td></tr>
+          </table>
+          <table width="100%" cellpadding="0" cellspacing="0"
+                 style="margin-top:24px">
+            <tr>
+              <td style="background:#f0f0f8;border-radius:8px;padding:14px 18px">
+                <p style="margin:0 0 4px;font-size:11px;font-weight:700;
+                           color:#999;letter-spacing:0.06em;text-transform:uppercase">
+                  Your unique ID
+                </p>
+                <p style="margin:0;font-family:monospace;font-size:13px;
+                           color:#7c6fff;word-break:break-all">{user_uuid}</p>
+              </td>
+            </tr>
+          </table>
+          <p style="margin:28px 0 0;font-size:14px;color:#555;line-height:1.7">
+            <strong>Instructions:</strong><br>
+            1. Save this email or screenshot the QR code.<br>
+            2. Show the QR at the door — one scan per person.<br>
+            3. After check-in, use your ID above to access Projects and vote.
+          </p>
+        </td>
+      </tr>
+      <tr>
+        <td style="background:#f8f8fc;padding:20px 40px;border-top:1px solid #eee">
+          <p style="margin:0;font-size:12px;color:#999">
+            This pass is personal and non-transferable.
+          </p>
+        </td>
+      </tr>
+    </table>
+  </td></tr>
+</table>
+</body>
+</html>"""
 
-    plain_body = f"""
-Hello {to_name},
-
-Your registration is confirmed.
-
-Your ID: {user_uuid}
-
-QR code is attached.
-"""
-
-    alt = MIMEMultipart("alternative")
-    alt.attach(MIMEText(plain_body, "plain", "utf-8"))
-    alt.attach(MIMEText(html_body, "html", "utf-8"))
-    msg.attach(alt)
-
-    # ── Attach QR ─────────────────────────────────────────────────────────
-    qr_img = MIMEImage(qr_png, "png")
-    qr_img.add_header("Content-ID", "<qrcode>")
-    msg.attach(qr_img)
-
-    qr_attach = MIMEImage(qr_png, "png")
-    qr_attach.add_header("Content-Disposition", "attachment", filename="qr.png")
-    msg.attach(qr_attach)
-
-    # ── SMTP ──────────────────────────────────────────────────────────────
-    try:
-        with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=20) as server:
-            server.ehlo()
-            server.starttls()
-            server.ehlo()
-            server.login(EMAIL_USER, EMAIL_PASS)
-            server.sendmail(EMAIL_USER, [to_email], msg.as_bytes())
-
-        log.info("✅ Email sent to %s <%s>", to_name, to_email)
-
-    except Exception as e:
-        log.error("❌ SMTP failed for %s: %s", to_email, e)
-        raise
+    params = resend.Emails.SendParams(
+        from_=FROM_ADDRESS,
+        to=[f"{to_name} <{to_email}>"],
+        subject=f"Your Entry Pass — {EVENT_NAME}",
+        html=html_body,
+        attachments=[
+            resend.Attachment(
+                filename="entry_pass.png",
+                content=list(qr_png),   # Resend expects list of ints
+            )
+        ],
+    )
+    response = resend.Emails.send(params)
+    log.info("Resend delivered to %s — id=%s", to_email, response["id"])
 
 
-# ── Async wrapper ───────────────────────────────────────────────────────────
 def send_qr_email_async(
     to_name: str,
     to_email: str,
     user_uuid: str,
     jwt_token: str,
 ) -> concurrent.futures.Future:
-    return _executor.submit(
-        _send_blocking,
-        to_name,
-        to_email,
-        user_uuid,
-        jwt_token
-    )
+    return _executor.submit(_send_blocking, to_name, to_email, user_uuid, jwt_token)
 
 
-# ── Config check ────────────────────────────────────────────────────────────
 def email_configured() -> bool:
-    return bool(EMAIL_USER and EMAIL_PASS)
+    return bool(os.getenv("RESEND_API_KEY", "").strip())
