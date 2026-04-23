@@ -1,39 +1,35 @@
 {% extends "base.html" %}
-{% block title %}Registration Confirmed — Conrol EX{% endblock %}
+{% block title %}Your Pass — EventPass{% endblock %}
 {% block content %}
-<div class="container" style="max-width:500px;text-align:center">
+<div class="container" style="max-width:480px;text-align:center">
   <div style="margin-bottom:2rem">
-    <div style="font-size:3.5rem;margin-bottom:1rem">📬</div>
-    <h1 style="margin-bottom:0.5rem">Check your<br><span style="color:#7c6fff">inbox!</span></h1>
-    <p style="color:#6b6b80;font-size:0.95rem;line-height:1.6">
-      Your QR entry pass has been sent to<br>
-      <strong style="color:#e8e8f0">{{ email }}</strong>
-    </p>
+    <div style="font-size:3rem;margin-bottom:0.75rem">🎉</div>
+    <h1 style="margin-bottom:0.4rem">You're in,<br><span style="color:#7c6fff">{{ user.name }}!</span></h1>
+    <p style="color:#6b6b80;font-size:0.95rem">Present this QR code at the entrance.</p>
   </div>
 
-  <div class="card" style="text-align:left;margin-bottom:1.5rem">
-    <h2 style="font-size:1rem;margin-bottom:1rem;color:#7c6fff">What to do next</h2>
-    <div style="display:flex;flex-direction:column;gap:0.75rem">
-      <div style="display:flex;gap:0.75rem;align-items:flex-start">
-        <span style="background:rgba(124,111,255,0.15);border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.8rem;flex-shrink:0;color:#7c6fff">1</span>
-        <p style="font-size:0.9rem;color:#a0a0b8;margin:4px 0 0">Open the email from <strong style="color:#e8e8f0">EventPass</strong> and find the QR code image.</p>
-      </div>
-      <div style="display:flex;gap:0.75rem;align-items:flex-start">
-        <span style="background:rgba(124,111,255,0.15);border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.8rem;flex-shrink:0;color:#7c6fff">2</span>
-        <p style="font-size:0.9rem;color:#a0a0b8;margin:4px 0 0">Save the email or screenshot the QR — you'll need it at the door.</p>
-      </div>
-      <div style="display:flex;gap:0.75rem;align-items:flex-start">
-        <span style="background:rgba(124,111,255,0.15);border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.8rem;flex-shrink:0;color:#7c6fff">3</span>
-        <p style="font-size:0.9rem;color:#a0a0b8;margin:4px 0 0">Show the QR to the organiser at the entrance to check in.</p>
-      </div>
+  <div class="card" style="display:inline-block;padding:1.5rem">
+    <div style="background:white;border-radius:10px;padding:1rem;display:inline-block">
+      <img src="data:image/png;base64,{{ qr_b64 }}" alt="Your QR Code" style="width:220px;height:220px;display:block" />
+    </div>
+    <div style="margin-top:1.25rem">
+      <p style="font-size:0.9rem;color:#6b6b80;margin-bottom:0.25rem">Registered as</p>
+      <p style="font-weight:600;font-size:1rem">{{ user.name }}</p>
+      <p style="font-size:0.85rem;color:#6b6b80">{{ user.email }}</p>
+    </div>
+    <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid #2a2a38">
+      <p style="font-size:0.75rem;color:#6b6b80">Your ID</p>
+      <p style="font-family:monospace;font-size:0.7rem;color:#7c6fff;word-break:break-all">{{ user.id }}</p>
     </div>
   </div>
 
-  <div style="padding:0.85rem 1rem;background:rgba(79,255,176,0.06);border:1px solid rgba(79,255,176,0.2);border-radius:10px;font-size:0.83rem;color:#4fffb0;margin-bottom:1.75rem;text-align:left">
-    ✉️ <strong>Didn't receive the email?</strong> Check your spam folder.
-    The QR code is also attached as a PNG file to the email.
+  <div style="margin-top:1.5rem;padding:1rem;background:rgba(79,255,176,0.06);border:1px solid rgba(79,255,176,0.2);border-radius:10px;font-size:0.85rem;color:#4fffb0">
+    💡 <strong>Save this page</strong> or take a screenshot of your QR code. You'll need it to enter.
   </div>
 
-  <a href="/" class="btn btn-secondary" style="font-size:0.875rem">← Register another person</a>
+  <div style="margin-top:1.5rem;display:flex;gap:0.75rem;justify-content:center">
+    <a href="/" class="btn btn-secondary" style="font-size:0.85rem">← Register another</a>
+    <a href="/projects?uuid={{ user.id }}&email={{ user.email }}" class="btn btn-secondary" style="font-size:0.85rem">View Projects</a>
+  </div>
 </div>
 {% endblock %}
