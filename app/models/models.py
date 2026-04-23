@@ -32,10 +32,4 @@ class Project(Base):
     description = Column(Text)
     team = Column(String)
     created_at = Column(DateTime, default=datetime.utcnow)
-from sqlalchemy import Column, String, Boolean, DateTime
-
-class User(Base):
-    # ... الحقول الموجودة (id, name, email, jwt_token, attended, voted) ...
-    email_verified = Column(Boolean, default=False)
-    verification_token = Column(String, unique=True, index=True, nullable=True)
-    verification_expires = Column(DateTime, nullable=True)
+ 
